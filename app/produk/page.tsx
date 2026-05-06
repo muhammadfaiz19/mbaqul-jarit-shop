@@ -8,7 +8,7 @@ import SectionHeading from "@/components/ui/section-heading";
 import ProductCard from "@/components/ui/product-card";
 import { cn } from "@/lib/utils";
 
-export default function ProdukPage() {
+function ProdukContent() {
   const searchParams = useSearchParams();
   const initialCat = searchParams.get("cat") || "semua";
   const [activeCategory, setActiveCategory] = React.useState(initialCat);
@@ -82,5 +82,17 @@ export default function ProdukPage() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+export default function ProdukPage() {
+  return (
+    <React.Suspense fallback={
+      <div className="pt-32 pb-24 min-h-screen bg-linen/10 flex items-center justify-center">
+        <p className="text-soft-brown font-medium animate-pulse">Memuat katalog produk...</p>
+      </div>
+    }>
+      <ProdukContent />
+    </React.Suspense>
   );
 }
