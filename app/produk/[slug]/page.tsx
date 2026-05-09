@@ -6,35 +6,102 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ShoppingBag, Ruler, Info, ArrowLeft } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/icons";
-import { products, siteConfig, microcopy } from "@/lib/data";
+import { productService } from "@/services/product.service";
+import { settingsService } from "@/services/settings.service";
+import type { Product } from "@/types";
 import Button from "@/components/ui/button";
 import ProductCard from "@/components/ui/product-card";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export default function DetailProdukPage() {
-  const { slug } = useParams();
-  const product = products.find(p => p.slug === slug);
+  const { slug } = useParams() as { slug: string };
+  const [product, setProduct] = React.useState<Product | null>(null);
+  const [loading, setLoading] = React.useState(true);
   const [activeImage, setActiveImage] = React.useState(0);
+  const [waNumber, setWaNumber] = React.useState("");
+  const [relatedList, setRelatedList] = React.useState<Product[]>([]);
 
-  if (!product) return (
-    <div className="pt-40 pb-24 text-center">
-      <h1 className="text-3xl font-display mb-4">Produk tidak ditemukan</h1>
-      <Link href="/produk">
-        <Button variant="outline">Kembali ke Produk</Button>
-      </Link>
-    </div>
-  );
+  React.useEffect(() => {
+    setLoading(true);
+    // Fetch settings for WA number
+    settingsService
+      .get()
+      .then((res) => {
+        if (res.data.success && res.data.data?.whatsappNumber) {
+          setWaNumber(res.data.data.whatsappNumber);
+        }
+      })
+      .catch(() => {});
 
-  const related = products
-    .filter(p => p.category === product.category && p.slug !== product.slug)
-    .slice(0, 4);
+    // Fetch single product
+    productService
+      .getBySlug(slug)
+      .then((res) => {
+        if (res.data.success && res.data.data) {
+          const fetchedProduct = res.data.data;
+          setProduct(fetchedProduct);
+          setActiveImage(0);
+
+          // Load related products based on category
+          const categorySlug = typeof fetchedProduct.category === "object"
+            ? fetchedProduct.category?.slug
+            : fetchedProduct.category;
+
+          if (categorySlug) {
+            productService
+              .getAll({ category: categorySlug, limit: 4 })
+              .then((relatedRes) => {
+                if (relatedRes.data.success && relatedRes.data.data) {
+                  const filtered = relatedRes.data.data.filter(
+                    (p: any) => p.slug !== slug,
+                  );
+                  setRelatedList(filtered);
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load product detail from API:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="pt-40 pb-24 text-center flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-10 h-10 border-4 border-terracotta border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-soft-brown font-medium">Memuat detail produk...</p>
+      </div>
+    );
+  }
+
+  if (!product)
+    return (
+      <div className="pt-40 pb-24 text-center">
+        <h1 className="text-3xl font-display mb-4">Produk tidak ditemukan</h1>
+        <Link href="/produk">
+          <Button variant="outline">Kembali ke Produk</Button>
+        </Link>
+      </div>
+    );
+
+  const productCategoryName = typeof product.category === "object" 
+    ? product.category?.name 
+    : (product.category || "Lainnya");
 
   return (
     <div className="pt-32 pb-24">
       <div className="section-padding">
         {/* Breadcrumb / Back */}
-        <Link href="/produk" className="inline-flex items-center text-soft-brown hover:text-terracotta mb-8 transition-colors">
+        <Link
+          href="/produk"
+          className="inline-flex items-center text-soft-brown hover:text-terracotta mb-8 transition-colors"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Kembali ke Katalog
         </Link>
@@ -48,7 +115,18 @@ export default function DetailProdukPage() {
               className="relative aspect-square rounded-[3rem] overflow-hidden shadow-xl"
             >
               <Image
-                src={product.images[activeImage]}
+                src={
+                  product.images && product.images[activeImage]
+                    ? product.images[activeImage].includes("/uploads/")
+                      ? product.images[activeImage].substring(
+                          product.images[activeImage].indexOf("/uploads/"),
+                        )
+                      : product.images[activeImage].startsWith("http") ||
+                          product.images[activeImage].startsWith("/")
+                        ? product.images[activeImage]
+                        : `/uploads/${product.images[activeImage]}`
+                    : "/images/placeholder.webp"
+                }
                 alt={product.name}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
@@ -56,19 +134,33 @@ export default function DetailProdukPage() {
                 priority
               />
             </motion.div>
-            
-            {product.images.length > 1 && (
-              <div className="flex gap-4">
+
+            {product.images && product.images.length > 1 && (
+              <div className="flex gap-4 overflow-x-auto py-2">
                 {product.images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setActiveImage(i)}
                     className={cn(
-                      "relative w-24 aspect-square rounded-2xl overflow-hidden border-2 transition-all",
-                      activeImage === i ? "border-terracotta shadow-md" : "border-transparent opacity-60 hover:opacity-100"
+                      "relative w-24 h-24 aspect-square rounded-2xl overflow-hidden border-2 transition-all flex-shrink-0 cursor-pointer",
+                      activeImage === i
+                        ? "border-terracotta shadow-md"
+                        : "border-transparent opacity-60 hover:opacity-100",
                     )}
                   >
-                    <Image src={img} alt={product.name} fill sizes="100px" className="object-cover" />
+                    <Image
+                      src={
+                        img.includes("/uploads/")
+                          ? img.substring(img.indexOf("/uploads/"))
+                          : img.startsWith("http") || img.startsWith("/")
+                            ? img
+                            : `/uploads/${img}`
+                      }
+                      alt={product.name}
+                      fill
+                      sizes="100px"
+                      className="object-cover"
+                    />
                   </button>
                 ))}
               </div>
@@ -82,14 +174,14 @@ export default function DetailProdukPage() {
             transition={{ duration: 0.6 }}
           >
             <span className="inline-block px-3 py-1 rounded-full bg-terracotta/10 text-terracotta font-bold text-xs uppercase tracking-widest mb-4">
-              {product.category}
+              {productCategoryName}
             </span>
             <h1 className="text-4xl md:text-5xl font-display mb-6 leading-tight">
               {product.name}
             </h1>
-            
+
             <div className="space-y-6 text-soft-brown text-lg leading-relaxed mb-10">
-              <p>{product.fullDescription}</p>
+              <p>{product.fullDescription || product.description}</p>
             </div>
 
             {/* Product Meta */}
@@ -99,19 +191,27 @@ export default function DetailProdukPage() {
                   <Info className="w-6 h-6 text-terracotta" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-dark text-sm uppercase tracking-wider mb-1">Bahan</h4>
-                  <p className="text-soft-brown">{product.material}</p>
+                  <h4 className="font-bold text-dark text-sm uppercase tracking-wider mb-1">
+                    Bahan
+                  </h4>
+                  <p className="text-soft-brown">
+                    {product.material || "Katun Rayon Premium"}
+                  </p>
                 </div>
               </div>
-              
-              {product.sizes && (
+
+              {product.sizes && product.sizes.length > 0 && (
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-2xl bg-cream">
                     <Ruler className="w-6 h-6 text-terracotta" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-dark text-sm uppercase tracking-wider mb-1">Ukuran</h4>
-                    <p className="text-soft-brown">{product.sizes.join(", ")}</p>
+                    <h4 className="font-bold text-dark text-sm uppercase tracking-wider mb-1">
+                      Ukuran
+                    </h4>
+                    <p className="text-soft-brown">
+                      {product.sizes.join(", ")}
+                    </p>
                   </div>
                 </div>
               )}
@@ -123,32 +223,50 @@ export default function DetailProdukPage() {
                 variant="whatsapp"
                 size="lg"
                 className="grow shadow-lg"
-                onClick={() => window.open(`https://wa.me/${siteConfig.whatsappNumber}?text=${encodeURIComponent(product.whatsappMessage)}`, '_blank')}
+                onClick={() =>
+                  window.open(
+                    `https://wa.me/${waNumber}?text=${encodeURIComponent(product.whatsappMessage || `Halo Kak, saya tertarik dengan produk ${product.name}. Apakah masih tersedia?`)}`,
+                    "_blank",
+                  )
+                }
               >
                 <WhatsAppIcon className="w-6 h-6 mr-3" />
                 Beli via WhatsApp
               </Button>
-              <Button
-                variant="tiktok"
-                size="lg"
-                className="grow shadow-lg"
-                onClick={() => window.open(product.tiktokUrl, '_blank')}
-              >
-                <ShoppingBag className="w-6 h-6 mr-3" />
-                Checkout di TikTok
-              </Button>
+              {product.tiktokUrl && (
+                <Button
+                  variant="tiktok"
+                  size="lg"
+                  className="grow shadow-lg"
+                  onClick={() => window.open(product.tiktokUrl, "_blank")}
+                >
+                  <ShoppingBag className="w-6 h-6 mr-3" />
+                  Beli di TikTok
+                </Button>
+              )}
+              {product.shopeeUrl && (
+                <Button
+                  variant="shopee"
+                  size="lg"
+                  className="grow shadow-lg"
+                  onClick={() => window.open(product.shopeeUrl, "_blank")}
+                >
+                  <ShoppingBag className="w-6 h-6 mr-3" />
+                  Beli di Shopee
+                </Button>
+              )}
             </div>
           </motion.div>
         </div>
 
         {/* Related Products */}
-        {related.length > 0 && (
+        {relatedList.length > 0 && (
           <div className="pt-24 border-t border-terracotta/10">
             <h3 className="text-3xl font-display mb-12 text-center md:text-left">
-              {microcopy.relatedProducts}
+              Koleksi Serupa
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
-              {related.map((p, i) => (
+              {relatedList.map((p, i) => (
                 <ProductCard key={p.slug} product={p} index={i} />
               ))}
             </div>

@@ -2,3 +2,8 @@ export * from './product';
 export * from './gallery';
 export * from './site';
 export * from './content';
+export * from './api';
+export * from './auth';
+export * from './faq';
+export * from './settings';
+export * from './chatbot';

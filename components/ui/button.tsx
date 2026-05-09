@@ -5,7 +5,7 @@ import { motion, HTMLMotionProps } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface ButtonProps extends HTMLMotionProps<"button"> {
-  variant?: "primary" | "outline" | "whatsapp" | "tiktok" | "ghost";
+  variant?: "primary" | "outline" | "whatsapp" | "tiktok" | "shopee" | "ghost";
   size?: "sm" | "md" | "lg" | "icon";
   asChild?: boolean;
 }
@@ -21,8 +21,10 @@ export default function Button({
     outline: "border-2 border-terracotta text-terracotta hover:bg-terracotta hover:text-white",
     whatsapp: "bg-whatsapp text-white hover:opacity-90 shadow-md",
     tiktok: "bg-black text-white hover:bg-zinc-800 shadow-md",
+    shopee: "bg-[#ee4d2d] text-white hover:opacity-90 shadow-md",
     ghost: "text-dark hover:bg-white/20",
   };
+
 
   const sizes = {
     sm: "px-4 py-2 text-sm",

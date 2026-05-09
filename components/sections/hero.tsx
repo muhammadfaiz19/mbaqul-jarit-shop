@@ -1,14 +1,43 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 import { WhatsAppIcon } from "../ui/icons";
-import { heroContent, siteConfig } from "@/lib/data";
+import { settingsService } from "@/services/settings.service";
 import Button from "../ui/button";
 import BlobDecoration from "../ui/blob-decoration";
 
 export default function Hero() {
+  const [hero, setHero] = useState({
+    headline: "Elegansi Harian Tanpa Batas",
+    subtext: "Menghadirkan jarit modern premium dengan sentuhan motif klasik Indonesia yang dinamis dan anggun.",
+    ctaPrimary: "Lihat Koleksi",
+    ctaSecondary: "Hubungi Kami",
+  });
+  const [waNumber, setWaNumber] = useState("");
+
+  useEffect(() => {
+    settingsService.get()
+      .then(res => {
+        if (res.data.success && res.data.data) {
+          const s = res.data.data;
+          setHero({
+            headline: s.heroHeadline || "Elegansi Harian Tanpa Batas",
+            subtext: s.heroSubtext || "Menghadirkan jarit modern premium dengan sentuhan motif klasik Indonesia yang dinamis dan anggun.",
+            ctaPrimary: s.heroCtaPrimary || "Lihat Koleksi",
+            ctaSecondary: s.heroCtaSecondary || "Hubungi Kami",
+          });
+          if (s.whatsappNumber) {
+            setWaNumber(s.whatsappNumber);
+          }
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load settings in Hero:", err);
+      });
+  }, []);
   return (
     <section className="relative min-h-[90vh] flex items-center pt-24 overflow-hidden">
       {/* Decorations */}
@@ -30,21 +59,21 @@ export default function Hero() {
           >
             New Collection 2024
           </motion.span>
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-display leading-[1.1] mb-8">
-            {heroContent.headline}
+           <h1 className="text-5xl md:text-7xl lg:text-8xl font-display leading-[1.1] mb-8">
+            {hero.headline}
           </h1>
           <p className="text-lg md:text-xl text-soft-brown mb-10 max-w-lg leading-relaxed">
-            {heroContent.subtext} — Koleksi pilihan untuk kenyamanan harianmu tanpa mengorbankan gaya.
+            {hero.subtext} — Koleksi pilihan untuk kenyamanan harianmu tanpa mengorbankan gaya.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4">
             <Button size="lg" onClick={() => window.location.href = '/produk'}>
               <ShoppingBag className="w-5 h-5 mr-3" />
-              {heroContent.ctaPrimary}
+              {hero.ctaPrimary}
             </Button>
-            <Button variant="outline" size="lg" onClick={() => window.open(`https://wa.me/${siteConfig.whatsappNumber}`, '_blank')}>
+            <Button variant="outline" size="lg" onClick={() => window.open(`https://wa.me/${waNumber}`, '_blank')}>
               <WhatsAppIcon className="w-5 h-5 mr-3" />
-              {heroContent.ctaSecondary}
+              {hero.ctaSecondary}
             </Button>
           </div>
 

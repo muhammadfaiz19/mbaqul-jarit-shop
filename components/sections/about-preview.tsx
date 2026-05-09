@@ -1,13 +1,45 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { aboutContent } from "@/lib/data";
+import { settingsService } from "@/services/settings.service";
 import SectionHeading from "../ui/section-heading";
 import Button from "../ui/button";
 import Link from "next/link";
 
 export default function AboutPreview() {
+  const [about, setAbout] = useState({
+    title: "Tentang mbaQul",
+    paragraphs: ["Menghadirkan jarit modern premium dengan sentuhan motif klasik Indonesia yang dinamis dan anggun."],
+    values: [
+      { title: "Kualitas", description: "Menggunakan bahan katun premium terbaik" },
+      { title: "Kenyamanan", description: "Sangat adem dan nyaman dipakai seharian" },
+      { title: "Elegan", description: "Desain modern dan modis yang up-to-date" },
+    ],
+  });
+
+  useEffect(() => {
+    settingsService.get()
+      .then(res => {
+        if (res.data.success && res.data.data) {
+          const s = res.data.data;
+          setAbout({
+            title: s.aboutTitle || "Tentang mbaQul",
+            paragraphs: (s.aboutParagraphs && s.aboutParagraphs.length > 0) ? s.aboutParagraphs : ["Menghadirkan jarit modern premium dengan sentuhan motif klasik Indonesia yang dinamis dan anggun."],
+            values: (s.aboutValues && s.aboutValues.length > 0) ? s.aboutValues : [
+              { title: "Kualitas", description: "Menggunakan bahan katun premium terbaik" },
+              { title: "Kenyamanan", description: "Sangat adem dan nyaman dipakai seharian" },
+              { title: "Elegan", description: "Desain modern dan modis yang up-to-date" },
+            ],
+          });
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load settings in AboutPreview:", err);
+      });
+  }, []);
+
   return (
     <section className="py-24 bg-cream overflow-hidden">
       <div className="section-padding grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -45,17 +77,18 @@ export default function AboutPreview() {
         {/* Text Side */}
         <div className="flex flex-col">
           <SectionHeading
-            title={aboutContent.title}
+            title={about.title}
             subtitle="Cerita Kami"
             align="left"
           />
           <div className="space-y-6 text-soft-brown text-lg leading-relaxed mb-10">
-            <p>{aboutContent.paragraphs[0]}</p>
-            <p>{aboutContent.paragraphs[1]}</p>
+            {about.paragraphs.map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
-            {aboutContent.values.map((val, i) => (
+            {about.values.map((val, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 10 }}
@@ -70,8 +103,8 @@ export default function AboutPreview() {
             ))}
           </div>
 
-          <Link href="/tentang">
-            <Button variant="outline" className="w-fit">Pelajari Lebih Lanjut</Button>
+          <Link href="/produk">
+            <Button variant="outline" className="w-fit">Belajari Koleksi</Button>
           </Link>
         </div>
       </div>

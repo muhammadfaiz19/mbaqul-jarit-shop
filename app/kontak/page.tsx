@@ -1,17 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ShoppingBag, MapPin, Clock, Send } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/icons";
-import { siteConfig, microcopy } from "@/lib/data";
+import { settingsService } from "@/services/settings.service";
+import type { SiteSettings } from "@/types";
 import SectionHeading from "@/components/ui/section-heading";
 import Button from "@/components/ui/button";
 
 export default function KontakPage() {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    settingsService.get()
+      .then(res => {
+        if (res.data.success && res.data.data) {
+          setSettings(res.data.data);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load settings in KontakPage:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,16 +39,29 @@ export default function KontakPage() {
     }
     
     const textTemplate = `Halo mbaQul, saya *${name}*.\n\n${message}`;
-    const whatsappUrl = `https://wa.me/${siteConfig.whatsappNumber}?text=${encodeURIComponent(textTemplate)}`;
+    const whatsappUrl = `https://wa.me/${settings?.whatsappNumber ?? ""}?text=${encodeURIComponent(textTemplate)}`;
     window.open(whatsappUrl, '_blank');
   };
+
+  if (loading) {
+    return (
+      <div className="pt-32 pb-24 min-h-screen flex flex-col items-center justify-center">
+        <div className="w-10 h-10 border-4 border-terracotta border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-soft-brown font-medium">Memuat kontak...</p>
+      </div>
+    );
+  }
+
+  const operationalHours = settings?.operationalHours ?? "Senin - Sabtu: 08:00 - 17:00";
+  const whatsappNumber = settings?.whatsappNumber ?? "";
+  const tiktokUrl = settings?.tiktokUrl ?? "";
 
   return (
     <div className="pt-32 pb-24 min-h-[calc(100vh-80px)] bg-linen/30 flex items-center">
       <div className="section-padding w-full">
         <SectionHeading
           title="Hubungi mbaQul"
-          subtitle={microcopy.contactCta}
+          subtitle="Mau tanya-tanya dulu? Chat aja!"
         />
 
         <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row border border-terracotta/10">
@@ -62,7 +93,7 @@ export default function KontakPage() {
                   </div>
                   <div>
                     <h4 className="font-bold text-sm uppercase tracking-wider mb-1 text-white/80">Jam Kerja</h4>
-                    <p className="text-white text-sm leading-relaxed">{siteConfig.operationalHours}</p>
+                    <p className="text-white text-sm leading-relaxed">{operationalHours}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -93,7 +124,7 @@ export default function KontakPage() {
                 variant="whatsapp"
                 size="lg"
                 className="w-full h-16 shadow-md hover:-translate-y-1 transition-transform"
-                onClick={() => window.open(`https://wa.me/${siteConfig.whatsappNumber}`, '_blank')}
+                onClick={() => window.open(`https://wa.me/${whatsappNumber}`, '_blank')}
               >
                 <WhatsAppIcon className="w-6 h-6 mr-3" />
                 Chat WhatsApp
@@ -102,7 +133,7 @@ export default function KontakPage() {
                 variant="tiktok"
                 size="lg"
                 className="w-full h-16 shadow-md hover:-translate-y-1 transition-transform"
-                onClick={() => window.open(siteConfig.tiktokUrl, '_blank')}
+                onClick={() => window.open(tiktokUrl, '_blank')}
               >
                 <ShoppingBag className="w-6 h-6 mr-3" />
                 Kunjungi TikTok

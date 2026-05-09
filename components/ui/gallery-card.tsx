@@ -31,7 +31,7 @@ export default function GalleryCard({
       )}
     >
       <Image
-        src={item.image}
+        src={item.image.includes("/uploads/") ? item.image.substring(item.image.indexOf("/uploads/")) : (item.image.startsWith("http") || item.image.startsWith("/") ? item.image : `/uploads/${item.image}`)}
         alt={item.alt}
         fill
         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

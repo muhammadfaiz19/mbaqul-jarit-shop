@@ -35,7 +35,7 @@ export default function CategoryCard({
       >
         <div className="relative w-24 h-24 mx-auto mb-6 overflow-hidden rounded-full border-4 border-white shadow-md transition-transform duration-500 group-hover:scale-110">
           <Image
-            src={category.image}
+            src={category.image ? (category.image.includes("/uploads/") ? category.image.substring(category.image.indexOf("/uploads/")) : (category.image.startsWith("http") || category.image.startsWith("/") ? category.image : `/uploads/${category.image}`)) : "/images/placeholder.webp"}
             alt={category.name}
             fill
             sizes="96px"

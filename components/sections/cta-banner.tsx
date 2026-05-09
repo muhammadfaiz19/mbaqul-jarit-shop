@@ -1,12 +1,29 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 import { WhatsAppIcon } from "../ui/icons";
-import { siteConfig, microcopy } from "@/lib/data";
+import { settingsService } from "@/services/settings.service";
 import Button from "../ui/button";
 
 export default function CTABanner() {
+  const [waNumber, setWaNumber] = useState("");
+  const [tiktokUrl, setTiktokUrl] = useState("");
+
+  useEffect(() => {
+    settingsService.get()
+      .then(res => {
+        if (res.data.success && res.data.data) {
+          const s = res.data.data;
+          if (s.whatsappNumber) setWaNumber(s.whatsappNumber);
+          if (s.tiktokUrl) setTiktokUrl(s.tiktokUrl);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load settings in CTABanner:", err);
+      });
+  }, []);
   return (
     <section className="section-padding">
       <motion.div
@@ -24,7 +41,7 @@ export default function CTABanner() {
             Sudah Menemukan Favoritmu?
           </h2>
           <p className="text-xl text-cream/80 mb-12 leading-relaxed">
-            {microcopy.ctaBanner} Pilih koleksi terbaik kami via WhatsApp atau TikTok Shop sekarang juga.
+            Pilih produk favoritmu sekarang. Pilih koleksi terbaik kami via WhatsApp atau TikTok Shop sekarang juga.
           </p>
           
           <div className="flex flex-col sm:flex-row justify-center gap-6">
@@ -32,7 +49,7 @@ export default function CTABanner() {
               variant="whatsapp"
               size="lg"
               className="bg-white text-whatsapp hover:bg-cream border-none shadow-xl"
-              onClick={() => window.open(`https://wa.me/${siteConfig.whatsappNumber}`, '_blank')}
+              onClick={() => window.open(`https://wa.me/${waNumber}`, '_blank')}
             >
               <WhatsAppIcon className="w-6 h-6 mr-3" />
               Chat WhatsApp
@@ -41,7 +58,7 @@ export default function CTABanner() {
               variant="tiktok"
               size="lg"
               className="bg-dark text-white hover:bg-zinc-900 border-none shadow-xl"
-              onClick={() => window.open(siteConfig.tiktokUrl, '_blank')}
+              onClick={() => window.open(tiktokUrl, '_blank')}
             >
               <ShoppingBag className="w-6 h-6 mr-3" />
               TikTok Shop
