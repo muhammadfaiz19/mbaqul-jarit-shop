@@ -1,5 +1,216 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+# Task: Implementasi Frontend Admin Chatbot Context & File Management
+
+## Objective
+
+Tambahkan halaman **admin** untuk mengelola **ChatbotContext** (text-based context upsert by name) dan **ChatbotFile** (upload/list/delete dokumen PDF/Excel) di project frontend `mbaqul-jarit-shop`.
+
+Backend endpoint sudah siap di `mbaqul-jarit-shop-be`. Task ini hanya mengerjakan sisi **frontend (Next.js)**.
+
+---
+
+## Tech Stack yang Digunakan
+
+- **Framework**: Next.js 16 (App Router, `"use client"`)
+- **Styling**: Tailwind CSS v4 (custom `@theme` tokens)
+- **HTTP Client**: Axios via `lib/api.ts`
+- **Icons**: `lucide-react`
+- **State**: React `useState` + `useEffect` (tidak pakai state library)
+
+---
+
+## Daftar Perubahan (Checklist)
+
+- [x] **1. Tambah type `ChatbotFile`** di `types/chatbot.ts`
+- [x] **2. Update `services/chatbot.service.ts`** — tambahkan method untuk endpoint baru
+- [x] **3. Redesign halaman `app/admin/dashboard/chatbot/page.tsx`** — tambahkan tab/section untuk Context dan File management
+
+---
+
+## Backend Endpoint yang Tersedia
+
+| Method | Endpoint                      | Auth     | Deskripsi                                 |
+| ------ | ----------------------------- | -------- | ----------------------------------------- |
+| POST   | `/api/chatbot/`               | ❌ Public | Kirim pesan chat ke AI                    |
+| GET    | `/api/chatbot/files`          | ✅ Admin  | List semua chatbot files                  |
+| POST   | `/api/chatbot/files`          | ✅ Admin  | Upload file PDF/Excel (field: `file`)     |
+| DELETE | `/api/chatbot/files/:id`      | ✅ Admin  | Hapus chatbot file by ID                  |
+| GET    | `/api/chatbot/contexts/:name` | ✅ Admin  | Get chatbot context by name               |
+| PUT    | `/api/chatbot/contexts/:name` | ✅ Admin  | Upsert (create/update) context by name    |
+
+### Response Format
+
+Semua endpoint backend mengembalikan format:
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "...",
+  "data": { ... }
+}
+```
+
+### ChatbotFile Response Shape
+```json
+{
+  "id": 1,
+  "filename": "catalog.pdf",
+  "filePath": "C:\\uploads\\1749...-catalog.webp",
+  "fileUrl": "http://localhost:9090/uploads/1749...-catalog.webp",
+  "content": "extracted text content...",
+  "createdAt": "2026-06-11T04:12:00.000Z",
+  "updatedAt": "2026-06-11T04:12:00.000Z"
+}
+```
+
+### ChatbotContext Response Shape (by name)
+```json
+{
+  "id": 1,
+  "name": "mbaqul-jarit",
+  "context": "Kamu adalah asisten virtual resmi...",
+  "createdAt": "2026-06-11T04:00:00.000Z",
+  "updatedAt": "2026-06-11T04:12:00.000Z"
+}
+```
+
+---
+
+## 1. Tambah Type `ChatbotFile`
+
+**File:** `types/chatbot.ts`
+
+Tambahkan interface `ChatbotFile` **di bawah** interface yang sudah ada. **JANGAN** hapus atau ubah interface lama.
+
+```typescript
+export interface ChatbotFile {
+  id: number;
+  filename: string;
+  filePath: string;
+  fileUrl: string;
+  content: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+```
+
+Setelah ditambahkan, file akan terlihat seperti ini:
+
+```typescript
+export interface ChatbotContext {
+  id: number;
+  name: string;
+  context: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ChatMessage {
+  message: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  reasoning: string;
+}
+
+export interface ChatbotFile {
+  id: number;
+  filename: string;
+  filePath: string;
+  fileUrl: string;
+  content: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+```
+
+---
+
+## 2. Update `services/chatbot.service.ts`
+
+**File:** `services/chatbot.service.ts`
+
+Tambahkan method baru untuk endpoint context by name dan file management. **Jangan hapus** method yang sudah ada (`chat`, `getContexts`, `updateContext`).
+
+Ganti **seluruh isi** file ini dengan:
+
+```typescript
+import api from "@/lib/api";
+import type { ChatbotContext, ChatbotFile, ChatResponse, ApiResponse } from "@/types";
+
+export const chatbotService = {
+  // === Existing methods (jangan dihapus) ===
+  chat: async (message: string) => {
+    return api.post<ApiResponse<ChatResponse>>("/chatbot", { message });
+  },
+
+  getContexts: async () => {
+    return api.get<ApiResponse<ChatbotContext[]>>("/chatbot/contexts");
+  },
+
+  updateContext: async (id: number, context: string) => {
+    return api.put<ApiResponse<ChatbotContext>>(`/chatbot/contexts/${id}`, { context });
+  },
+
+  // === New methods untuk Context by Name ===
+  getContextByName: async (name: string) => {
+    return api.get<ApiResponse<ChatbotContext>>(`/chatbot/contexts/${name}`);
+  },
+
+  upsertContextByName: async (name: string, context: string) => {
+    return api.put<ApiResponse<ChatbotContext>>(`/chatbot/contexts/${name}`, { context });
+  },
+
+  // === New methods untuk File Management ===
+  getFiles: async () => {
+    return api.get<ApiResponse<ChatbotFile[]>>("/chatbot/files");
+  },
+
+  uploadFile: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post<ApiResponse<ChatbotFile>>("/chatbot/files", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  deleteFile: async (id: number) => {
+    return api.delete<ApiResponse<null>>(`/chatbot/files/${id}`);
+  },
+};
+```
+
+> **Catatan:** Pattern `FormData` + `multipart/form-data` header sudah digunakan di `gallery.service.ts`. Ikuti pola yang sama.
+
+---
+
+## 3. Redesign Halaman Admin Chatbot
+
+**File:** `app/admin/dashboard/chatbot/page.tsx`
+
+### Konsep Desain
+
+Halaman chatbot admin dibagi menjadi **2 section/tab**:
+
+1. **Tab "Ingatan Konteks"** — Editor textarea untuk mengelola text context chatbot (menggunakan `upsertContextByName` dengan name `"mbaqul-jarit"`)
+2. **Tab "Dokumen Konteks"** — Upload & manage file PDF/Excel yang kontennya di-inject ke chatbot
+
+### Referensi Pola UI
+
+- **Loading state**: Gunakan spinner `w-10 h-10 border-4 border-terracotta border-t-transparent rounded-full animate-spin` (lihat pattern di halaman gallery)
+- **Empty state**: Gunakan icon besar + teks deskriptif (lihat pattern di halaman gallery/chatbot lama)
+- **Card/Container**: Gunakan class `bg-white/40 backdrop-blur-md rounded-[2rem] border border-white/30 shadow-sm`
+- **Button primary**: `bg-terracotta hover:bg-soft-brown text-white rounded-xl text-xs font-semibold`
+- **Button secondary**: `bg-white hover:bg-white/80 text-soft-brown rounded-xl text-xs font-semibold border border-white/40`
+- **Label**: `text-xs uppercase tracking-widest font-bold text-dark mb-2 font-body`
+- **Input/Textarea**: `w-full px-5 py-4 bg-white/70 border border-white/30 rounded-2xl focus:border-terracotta focus:bg-white focus:outline-none transition-all duration-300 text-sm font-body text-dark`
+- **File upload area**: `border-2 border-dashed border-terracotta/20 hover:border-terracotta rounded-2xl` (lihat gallery page)
+
+### Ganti **seluruh isi** file `page.tsx` dengan kode berikut:
+
+```tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -16,7 +227,6 @@ import {
   Trash2,
   FileSpreadsheet,
   Brain,
-  Download,
 } from "lucide-react";
 
 type TabType = "context" | "files";
@@ -409,34 +619,19 @@ export default function AdminChatbotPage() {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Download Button */}
-                    <a
-                      href={file.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2.5 bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white rounded-xl shadow-sm transition-all cursor-pointer border border-emerald-100 flex items-center justify-center"
-                      title="Unduh Dokumen"
-                      download={file.filename}
-                    >
-                      <Download className="w-4 h-4" />
-                    </a>
-
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => handleDeleteFile(file.id)}
-                      disabled={deletingId === file.id}
-                      className="p-2.5 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-xl shadow-sm transition-all cursor-pointer border border-red-100 disabled:opacity-50"
-                      title="Hapus Dokumen"
-                    >
-                      {deletingId === file.id ? (
-                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
+                  {/* Delete Button */}
+                  <button
+                    onClick={() => handleDeleteFile(file.id)}
+                    disabled={deletingId === file.id}
+                    className="p-2.5 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-xl shadow-sm transition-all cursor-pointer border border-red-100 flex-shrink-0 disabled:opacity-50"
+                    title="Hapus Dokumen"
+                  >
+                    {deletingId === file.id ? (
+                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
               ))}
             </div>
@@ -446,4 +641,43 @@ export default function AdminChatbotPage() {
     </div>
   );
 }
+```
 
+---
+
+## Catatan Penting untuk Developer
+
+### Pola Kode yang Sudah Ada
+
+1. **Axios instance** sudah di-setup di `lib/api.ts` dengan `baseURL: "/api"` (client-side) dan proxy rewrite via `next.config.ts`. Semua request otomatis forward ke backend.
+
+2. **Cookie auth** sudah otomatis dikirim (`withCredentials: true`). Tidak perlu menambahkan token secara manual.
+
+3. **FormData upload** pattern sudah ada di `gallery.service.ts`. Ikuti pola yang sama: buat `FormData`, append file, set header `multipart/form-data`.
+
+4. **Design tokens** (warna `terracotta`, `cream`, `soft-brown`, `dark`, `linen`, dll.) didefinisikan di `globals.css`. Gunakan class Tailwind seperti `bg-terracotta`, `text-soft-brown`, dll.
+
+5. **Type barrel export** ada di `types/index.ts`. Setelah menambahkan `ChatbotFile` di `types/chatbot.ts`, ia otomatis ter-export karena sudah ada `export * from './chatbot'` di `types/index.ts`.
+
+### File yang TIDAK perlu diubah
+
+- `actions/chatbot.ts` — tidak perlu diubah
+- `types/index.ts` — tidak perlu diubah (sudah re-export semua dari `chatbot.ts`)
+- `app/admin/layout.tsx` — sidebar sudah ada menu "Chatbot AI" yang mengarah ke `/admin/dashboard/chatbot`
+- `lib/api.ts` — tidak perlu diubah
+- `next.config.ts` — tidak perlu diubah (sudah ada rewrite `/api/*` ke backend)
+
+### Testing Manual
+
+Setelah semua selesai, buka browser dan navigasi ke halaman admin:
+
+1. **Login** ke `http://localhost:3000/admin/login`
+2. **Navigasi** ke menu **"Chatbot AI"** di sidebar
+3. **Tab "Ingatan Konteks"**:
+   - Tulis konteks baru / edit konteks yang sudah ada
+   - Klik "Simpan Ingatan" → harus tampil badge "Berhasil Disimpan" selama 3 detik
+4. **Tab "Dokumen Konteks"**:
+   - Klik area upload → pilih file PDF atau Excel
+   - File harus muncul di daftar setelah upload
+   - Klik icon trash → harus tampil confirm → file terhapus dari list
+5. **Test chatbot** (halaman publik): kirim pertanyaan → chatbot harus menjawab menggunakan data dari konteks teks + dokumen yang diupload

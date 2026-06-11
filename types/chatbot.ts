@@ -14,3 +14,14 @@ export interface ChatResponse {
   answer: string;
   reasoning: string;
 }
+
+export interface ChatbotFile {
+  id: number;
+  filename: string;
+  filePath: string;
+  fileUrl: string;
+  content: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
